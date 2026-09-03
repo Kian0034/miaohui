@@ -1,0 +1,69 @@
+name: build-windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-win.txt
+          pip install pyinstaller
+
+      - name: Build (PyInstaller onedir)
+        shell: pwsh
+        run: >
+          pyinstaller --noconfirm --clean --windowed --name MiaoHui
+          --hidden-import appdirs
+          --exclude-module pkg_resources
+          --hidden-import core.pipeline
+          --hidden-import core.bootstrap
+          --hidden-import core.search
+          --hidden-import app_win.panel
+          --hidden-import app_win.tray
+          --hidden-import app_win.hotkey
+          --hidden-import app_win.opener
+          --collect-all jieba
+          --collect-all rapidocr_onnxruntime
+          --collect-all cv2
+          --collect-all onnxruntime
+          --collect-all hnswlib
+          --collect-all ctranslate2
+          --collect-all tokenizers
+          --hidden-import av
+          --hidden-import av.__main__
+          main.py
+
+      - name: Smoke test (UI probe)
+        shell: pwsh
+        run: |
+          $env:MIAOHUI_PROBE="1"
+          & .\dist\MiaoHui\MiaoHui.exe --probe-ui
+        continue-on-error: false
+
+      - name: Assemble package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path package | Out-Null
+          Copy-Item -Recurse -Force dist\MiaoHui package\MiaoHui
+          Copy-Item -Force scripts\win\启动秒回.bat package\
+          Copy-Item -Force 使用说明.txt package\
+          Compress-Archive -Path package\* -DestinationPath MiaoHui-Windows.zip -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MiaoHui-Windows
+          path: MiaoHui-Windows.zip
+          retention-days: 30

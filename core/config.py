@@ -1,21 +1,28 @@
-"""秒回 MiaoHui - 全局配置与路径管理。
+"""秒回 MiaoHui - 全局配置与路径管理（跨平台）。
 
-所有持久化数据都在 ~/Library/Application Support/MiaoHui 下：
+macOS: ~/Library/Application Support/MiaoHui
+Windows: %APPDATA%/MiaoHui
   index.db      SQLite 元数据 + FTS 全文索引 + 加密缩略图
   hnsw_vis.bin  视觉向量 HNSW（Chinese-CLIP 512维）
-  hnsw_txt.bin  文本向量 HNSW（bge-small-zh 384维）
+  hnsw_txt.bin  文本向量 HNSW（bge-small-zh 512维）
   audit.jsonl   审计日志：记录每一个被索引的文件
   settings.json 用户设置
-隐私承诺：全程离线，无任何网络请求；缩略图 AES-GCM 加密，密钥存 macOS 钥匙串。
+隐私承诺：全程离线，无任何网络请求；缩略图 AES-GCM 加密，
+密钥存 macOS 钥匙串 / Windows DPAPI。
 """
 import json
 import os
+import sys
 from pathlib import Path
 
 APP_NAME = "MiaoHui"
 APP_NAME_CN = "秒回"
 
-SUPPORT_DIR = Path.home() / "Library" / "Application Support" / APP_NAME
+if sys.platform == "win32":
+    SUPPORT_DIR = (Path(os.environ.get("APPDATA", Path.home() / "AppData"
+                                      / "Roaming")) / APP_NAME)
+else:
+    SUPPORT_DIR = Path.home() / "Library" / "Application Support" / APP_NAME
 CACHE_DIR = SUPPORT_DIR / "cache"
 DB_PATH = SUPPORT_DIR / "index.db"
 HNSW_VIS_PATH = SUPPORT_DIR / "hnsw_vis.bin"
@@ -28,25 +35,34 @@ KEYCHAIN_ACCOUNT = "thumbs"
 
 # 视觉向量维度（Chinese-CLIP ViT-B/16）
 DIM_VIS = 512
-# 文本向量维度（bge-small-zh-v1.5）
-DIM_TXT = 384
+# 文本向量维度（bge-small-zh-v1.5，注意中文版是 512 维而非 384）
+DIM_TXT = 512
 
-# 默认扫描根目录（顺序即优先级：演示素材多的目录在前）
-DEFAULT_ROOTS = [
-    "~/Downloads",
-    "~/Desktop",
-    "~/Movies",
-    "~/vdown_promo",
-    "~/xsy_mod",
-    "~/Documents",
-    "~/Pictures",
-    "~/Music",
-    "~/vdown",
-    "~/cubeforge",
-    "~/mcbedrock_finder",
-    "~/miyu",
-    "~/LiveWall",
-]
+# 默认扫描根目录（顺序即优先级）
+if sys.platform == "win32":
+    DEFAULT_ROOTS = [
+        "~/Downloads",
+        "~/Desktop",
+        "~/Videos",
+        "~/Documents",
+        "~/Pictures",
+    ]
+else:
+    DEFAULT_ROOTS = [
+        "~/Downloads",
+        "~/Desktop",
+        "~/Movies",
+        "~/vdown_promo",
+        "~/xsy_mod",
+        "~/Documents",
+        "~/Pictures",
+        "~/Music",
+        "~/vdown",
+        "~/cubeforge",
+        "~/mcbedrock_finder",
+        "~/miyu",
+        "~/LiveWall",
+    ]
 
 # 媒体扩展名（.ts 与 TypeScript 冲突，不作为视频扩展）
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif", ".bmp", ".tiff", ".tif", ".jfif"}

@@ -42,20 +42,20 @@ def _sigterm(_a, _b):
     _stop = True
 
 
-def _process_image(db: DB, clip, ocr_fn, p: Path):
-    """→ (item_id, vis_vec) 或 (None, None) 表示跳过/无变化。"""
+def _process_image(db: DB, clip, bge, ocr_fn, p: Path):
+    """→ (item_id, vis_vec, txt_vec|None)；(None, None, None) 表示跳过。"""
     from PIL import Image
     from .frames import thumb_jpeg
     from . import security
 
     st = p.stat()
     if db.unchanged(str(p), st.st_mtime, st.st_size):
-        return None, None
+        return None, None, None
     im = Image.open(p)
     im.load()
     if im.width < 24 or im.height < 24:
         db.upsert_file(str(p), "image", st.st_mtime, st.st_size, status="error")
-        return None, None
+        return None, None, None
     # GIF 取第一帧
     if getattr(im, "n_frames", 1) > 1:
         im.seek(0)
@@ -63,11 +63,18 @@ def _process_image(db: DB, clip, ocr_fn, p: Path):
     thumb = thumb_jpeg(rgb)
     ocr_text = ocr_fn(rgb) if config.load_settings().get("ocr_enabled", True) else ""
     vec = clip.encode_image(rgb)
+    # OCR 文本同时入语义通道（bge ~6ms），截图语义检索命中率大幅提升
+    tvec = None
+    if ocr_text:
+        try:
+            tvec = bge.encode(ocr_text[:256])
+        except Exception:
+            tvec = None
     fid = db.upsert_file(str(p), "image", st.st_mtime, st.st_size)
     iid = db.add_item(fid, "image", None, None, ocr_text, "",
                       security.enc(thumb))
     db.bump_item_count(fid, 1)
-    return iid, vec
+    return iid, vec, tvec
 
 
 def _process_video(db: DB, clip, bge, ocr_fn, asr_on: bool, p: Path) -> list:
@@ -180,9 +187,12 @@ def run(asr: bool = None, rescan: bool = False, max_files: int = None):
         ext = p.suffix.lower()
         try:
             if ext in config.IMAGE_EXTS:
-                iid, vec = _process_image(db, clip, ocr_from_pil, p)
+                iid, vec, tvec = _process_image(db, clip, bge,
+                                                ocr_from_pil, p)
                 if iid:
                     vec_buf.append((iid, "vis", vec))
+                    if tvec is not None:
+                        vec_buf.append((iid, "txt", tvec))
             else:
                 ids = _process_video(db, clip, bge, ocr_from_pil, asr, p)
                 vec_buf.extend(ids)

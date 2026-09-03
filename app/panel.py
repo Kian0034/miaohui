@@ -3,17 +3,20 @@ import os
 import threading
 
 import objc
-from AppKit import (NSBackingStoreBuffered, NSBox, NSColor, NSFont, NSImage,
-                    NSImageScaleProportionallyUpOrDown, NSImageView, NSIndexSet,
+from AppKit import (NSBox, NSColor, NSFont, NSImage, NSImageView, NSIndexSet,
                     NSMakeRect, NSPanel, NSScreen, NSScrollView, NSTableColumn,
-                    NSTableView, NSTextField, NSTextAlignmentRight,
-                    NSVisualEffectBlendingModeBehindWindow,
-                    NSVisualEffectMaterialHUDWindow, NSVisualEffectStateActive,
-                    NSView, NSViewHeightSizable, NSViewMinXMargin,
-                    NSViewWidthSizable, NSWindowStyleMaskFullSizeContentView,
-                    NSWindowStyleMaskNonactivatingPanel, NSWindowStyleMaskTitled,
-                    NSWindowStyleMaskUtilityWindow, NSWindowTitleHidden)
+                    NSTableView, NSTextField, NSView, NSWindowStyleMaskTitled)
 from Foundation import NSObject, NSTimer
+from ._compat import (NSBackingStoreBuffered,
+                      NSImageScaleProportionallyUpOrDown,
+                      NSTextAlignmentRight,
+                      NSVisualEffectBlendingModeBehindWindow,
+                      NSVisualEffectMaterialHUDWindow,
+                      NSVisualEffectStateActive, NSViewHeightSizable,
+                      NSViewMinXMargin, NSViewWidthSizable,
+                      NSWindowStyleMaskFullSizeContentView,
+                      NSWindowStyleMaskNonactivatingPanel,
+                      NSWindowStyleMaskUtilityWindow, NSWindowTitleHidden)
 
 
 def _sys_font(size, semibold=False):
@@ -43,6 +46,7 @@ class ResultRowView(NSView):
         self._built = False
         return self
 
+    @objc.python_method
     def _build(self):
         if self._built:
             return
@@ -128,6 +132,7 @@ class SearchPanel(NSObject):
         return self
 
     # ---------- UI ----------
+    @objc.python_method
     def _build_window(self):
         style = (NSWindowStyleMaskNonactivatingPanel |
                  NSWindowStyleMaskTitled |
@@ -148,13 +153,18 @@ class SearchPanel(NSObject):
         panel.setDelegate_(self)
         self.panel = panel
 
-        from AppKit import NSVisualEffectView
-        fx = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, w, h))
-        fx.setMaterial_(NSVisualEffectMaterialHUDWindow)
-        fx.setBlendingMode_(NSVisualEffectBlendingModeBehindWindow)
-        fx.setState_(NSVisualEffectStateActive)
-        fx.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
-        panel.contentView().addSubview_(fx)
+        NSVisualEffectView = getattr(
+            __import__("AppKit"), "NSVisualEffectView", None)
+        if NSVisualEffectView is None:
+            fx = None
+        else:
+            fx = NSVisualEffectView.alloc().initWithFrame_(
+                NSMakeRect(0, 0, w, h))
+            fx.setMaterial_(NSVisualEffectMaterialHUDWindow)
+            fx.setBlendingMode_(NSVisualEffectBlendingModeBehindWindow)
+            fx.setState_(NSVisualEffectStateActive)
+            fx.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
+            panel.contentView().addSubview_(fx)
         self.fx = fx
 
         self.field = NSTextField.alloc().initWithFrame_(
@@ -211,8 +221,10 @@ class SearchPanel(NSObject):
 
     def show(self):
         self.panel.makeKeyAndOrderFront_(None)
-        from AppKit import NSApp
-        NSApp.activateIgnoringOtherApps_(True)
+        import AppKit
+        NSApp = getattr(AppKit, "NSApp", None)
+        if NSApp is not None:
+            NSApp.activateIgnoringOtherApps_(True)
         self.panel.makeFirstResponder_(self.field)
         st = self.stats_provider() if self.stats_provider else {}
         self.footer.setStringValue_(
@@ -255,7 +267,7 @@ class SearchPanel(NSObject):
                 self.table.scrollRowToVisible_(nxt)
             return True
         if s == "insertNewline:":            # Enter
-            self._open_selected()
+            self.openSelected()
             return True
         return False
 
@@ -318,7 +330,7 @@ class SearchPanel(NSObject):
         pass
 
     # ---------- 打开 ----------
-    def _open_selected(self):
+    def openSelected(self):
         r = self.table.selectedRow()
         if 0 <= r < len(self._rows):
             m = self._rows[r]

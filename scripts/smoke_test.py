@@ -33,12 +33,16 @@ def t_ocr():
     from core.ocr import ocr_from_pil
     im = Image.new("RGB", (640, 200), "white")
     d = ImageDraw.Draw(im)
-    try:
-        from PIL import ImageFont
-        f = ImageFont.truetype(
-            "/System/Library/Fonts/PingFang.ttc", 48)
-    except Exception:
-        f = None
+    from PIL import ImageFont
+    f = None
+    for fp in ("/System/Library/Fonts/Hiragino Sans GB.ttc",
+               "/System/Library/Fonts/STHeiti Medium.ttc",
+               "/System/Library/Fonts/Supplemental/Songti.ttc"):
+        try:
+            f = ImageFont.truetype(fp, 48)
+            break
+        except OSError:
+            continue
     d.text((40, 60), "秒回本地搜索 0.3秒", fill="black", font=f)
     text = ocr_from_pil(im)
     assert "秒" in text or "0.3" in text, f"OCR 结果: {text!r}"

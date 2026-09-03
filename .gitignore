@@ -1,7 +1,48 @@
-__pycache__/
-*.pyc
-.DS_Store
+# 模型、数据和缓存
+core/models/
+core/_models_local/
+*.bin
+*.onnx
+*.gguf
+*.safetensors
+
+# 支持目录（索引库）
 *.db
+*.db-journal
 *.db-wal
 *.db-shm
-*.bin
+audit.jsonl
+cache/
+
+# 构建产物
+dist/
+build/
+*.app
+*.exe
+*.zip
+*.tar.gz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.eggs/
+*.egg-info/
+*.egg
+.venv/
+venv/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 日志
+*.log

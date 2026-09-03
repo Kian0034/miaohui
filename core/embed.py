@@ -70,39 +70,25 @@ class ClipEncoder:
         self.tok.enable_truncation(max_length=52)
         self.tok.enable_padding(length=52)
 
-        # text
-        tpath = CLIP_DIR / "onnx" / ("model_text.onnx" if
-                                     (CLIP_DIR / "onnx/model_text.onnx").exists()
-                                     else _pick_model_file(CLIP_DIR).name)
-        ts = _Session(tpath)
-        ins, outs, shapes = _io_names(ts.sess)
-        # 找到 rank2 且末维 512 的输出作为 text_embeds
-        idx = next((i for i, s in enumerate(shapes)
-                    if len(s) == 2 and s[-1] == 512), None)
-        if idx is None:
-            raise RuntimeError(f"CLIP text model outputs unexpected: {outs} {shapes}")
-        self.text_sess = ts
-        self.text_in = ins
-        self.text_out_idx = idx
-
-        # vision
-        vpath = None
-        for name in ("model_vision_quantized.onnx", "model_vision.onnx"):
-            p = CLIP_DIR / "onnx" / name
-            if p.exists():
-                vpath = p
-                break
-        if vpath is None:
-            raise FileNotFoundError("CLIP vision onnx missing")
-        vs = _Session(vpath)
-        ins, outs, shapes = _io_names(vs.sess)
-        pin = next((n for n in ins if "pixel" in n.lower()), ins[0])
-        idx2 = next((i for i, s in enumerate(shapes)
-                     if len(s) == 2 and s[-1] == 512), None)
-        self.vis_cls_only = idx2 is None
-        self.vis_out_idx = idx2 if idx2 is not None else 0
-        self.vis_sess = vs
-        self.vis_in = pin
+        # Xenova 合并图：单 session，text/vision 输入都必填，
+        # 未用的模态喂零/最小张量，取对应 embeds 输出
+        s = _Session(_pick_model_file(CLIP_DIR))
+        ins, outs, shapes = _io_names(s.sess)
+        self.sess = s
+        self.in_ids = next((n for n in ins
+                            if "ids" in n.lower() or "input" in n.lower()),
+                           ins[0])
+        self.in_mask = next((n for n in ins if "mask" in n.lower()), None)
+        self.in_pix = next((n for n in ins if "pixel" in n.lower()), None)
+        self.out_text = next((i for i, o in enumerate(outs)
+                              if "text_embeds" in o.lower()), None)
+        self.out_image = next((i for i, o in enumerate(outs)
+                               if "image_embeds" in o.lower()), None)
+        if self.out_text is None or self.out_image is None:
+            raise RuntimeError(f"CLIP combined model outputs unexpected: {outs}")
+        # 视觉侧的 dummy 文本输入（[CLS][SEP]，最短序列）
+        self.dummy_ids = np.array([[101, 102]], dtype=np.int64)
+        self.dummy_pix = np.zeros((1, 3, 224, 224), dtype=np.float32)
 
     # ---------- image ----------
     def _preprocess(self, im: Image.Image) -> np.ndarray:
@@ -121,11 +107,12 @@ class ClipEncoder:
         return np.ascontiguousarray(x)
 
     def encode_image(self, im: Image.Image) -> np.ndarray:
-        out = self.vis_sess.run({self.vis_in: self._preprocess(im)})
-        v = out[self.vis_out_idx]
-        if self.vis_cls_only:
-            v = v[:, 0, :]  # CLS（图内含投影时）
-        v = v / (np.linalg.norm(v, axis=-1, keepdims=True) + 1e-9)
+        feeds = {self.in_pix: self._preprocess(im),
+                 self.in_ids: self.dummy_ids}
+        if self.in_mask:
+            feeds[self.in_mask] = np.ones_like(self.dummy_ids)
+        out = self.sess.run(feeds)[self.out_image]
+        v = out / (np.linalg.norm(out, axis=-1, keepdims=True) + 1e-9)
         return v[0].astype(np.float32)
 
     # ---------- text ----------
@@ -133,24 +120,16 @@ class ClipEncoder:
         enc = self.tok.encode(s)
         ids = np.array([enc.ids], dtype=np.int64)
         att = np.array([enc.attention_mask], dtype=np.int64)
-        feeds = {}
-        for n in self.text_in:
-            ln = n.lower()
-            if "input" in ln or "ids" in ln:
-                feeds[n] = ids
-            elif "mask" in ln:
-                feeds[n] = att
-            elif "type" in ln:
-                feeds[n] = np.zeros_like(ids)
-        if not feeds:
-            feeds = {self.text_in[0]: ids}
-        out = self.text_sess.run(feeds)[self.text_out_idx]
+        feeds = {self.in_ids: ids, self.in_pix: self.dummy_pix}
+        if self.in_mask:
+            feeds[self.in_mask] = att
+        out = self.sess.run(feeds)[self.out_text]
         v = out / (np.linalg.norm(out, axis=-1, keepdims=True) + 1e-9)
         return v[0].astype(np.float32)
 
 
 class BgeEncoder:
-    """bge-small-zh-v1.5：文本→384d，掩码均值池化 + L2。"""
+    """bge-small-zh-v1.5：文本→512d，掩码均值池化 + L2。"""
 
     def __init__(self):
         from tokenizers import Tokenizer
@@ -172,6 +151,8 @@ class BgeEncoder:
         self.sess = s
         self.in_ids = next((n for n in ins if "input" in n.lower()), ins[0])
         self.in_mask = next((n for n in ins if "mask" in n.lower()), None)
+        self.in_types = next((n for n in ins if "token_type" in n.lower()),
+                             None)
 
     def encode(self, s: str) -> np.ndarray:
         enc = self.tok.encode(BGE_QUERY_PREFIX + s)
@@ -180,6 +161,8 @@ class BgeEncoder:
         feeds = {self.in_ids: ids}
         if self.in_mask:
             feeds[self.in_mask] = att
+        if self.in_types:
+            feeds[self.in_types] = np.zeros_like(ids)
         out = self.sess.run(feeds)[self.out_idx]
         if self.self_pool:
             m = att[0][:, None].astype(np.float32)

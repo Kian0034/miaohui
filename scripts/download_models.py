@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+os.environ.setdefault("HF_HUB_DISABLE_XET", "1")  # xet 直连 hf.co，镜像下不稳
 
 MODEL_DIR = Path.home() / "Library" / "Application Support" / "MiaoHui" / "models"
 

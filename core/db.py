@@ -213,19 +213,19 @@ class HNSW:
 
     @property
     def count(self) -> int:
-        return self.index.current_count
+        return int(self.index.element_count)
 
     def add(self, vectors, labels):
         if len(vectors) == 0:
             return
-        if self.index.current_count + len(vectors) > self.index.max_elements:
+        if self.index.element_count + len(vectors) > self.index.max_elements:
             self.index.resize_index(
                 max(self.index.max_elements * 2,
-                    self.index.current_count + len(vectors) + 1024))
+                    self.index.element_count + len(vectors) + 1024))
         self.index.add_items(vectors, labels)
 
     def knn(self, q, k: int = 64):
-        n = self.index.current_count
+        n = self.index.element_count
         if n == 0:
             return []
         labels, _ = self.index.knn_query(q, k=min(k, n))
