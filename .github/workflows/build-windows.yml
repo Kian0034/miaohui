@@ -55,8 +55,15 @@ jobs:
       - name: Smoke test (UI probe - MUST PASS)
         shell: pwsh
         run: |
+          Remove-Item ui_probe_ok.txt -ErrorAction SilentlyContinue
           & .\dist\MiaoHui\MiaoHui.exe --probe-ui
-          if ($LASTEXITCODE -ne 0) { Write-Host "SMOKE FAILED"; exit 1 }
+          Start-Sleep -Seconds 3
+          if (Test-Path ui_probe_ok.txt) {
+            Write-Host "SMOKE PASSED (marker file found)"
+          } else {
+            Write-Host "SMOKE FAILED (no marker file)"
+            exit 1
+          }
 
       - name: Assemble package
         if: success()

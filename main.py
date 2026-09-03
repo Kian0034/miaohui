@@ -200,6 +200,11 @@ def main():
             from app.hotkey import HotkeyManager         # noqa: F401
             from app import opener                       # noqa: F401
         print("UI-PROBE OK")
+        try:  # windowed exe 退出码不可靠，用标记文件判定
+            with open("ui_probe_ok.txt", "w") as f:
+                f.write("ok")
+        except Exception:
+            pass
         return
     if "--index-worker" in args:  # 冻结包内的索引子进程
         from core.pipeline import run
