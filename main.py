@@ -187,11 +187,18 @@ class App:
 
 def main():
     args = sys.argv[1:]
-    if "--probe-ui" in args:  # 冻结包 UI 导入自检
-        from app.panel import SearchPanel  # noqa: F401
-        from app.menubar import MenuBarController  # noqa: F401
-        from app.hotkey import HotkeyManager  # noqa: F401
-        from app import opener  # noqa: F401
+    if "--probe-ui" in args:  # 冻结包 UI 导入自检（平台分支）
+        import platform
+        if platform.system() == "Windows":
+            from app_win.panel import SearchPanel  # noqa: F401
+            from app_win.tray import TrayController    # noqa: F401
+            from app_win.hotkey import WinHotkeyFilter  # noqa: F401
+            from app_win import opener                   # noqa: F401
+        else:
+            from app.panel import SearchPanel           # noqa: F401
+            from app.menubar import MenuBarController   # noqa: F401
+            from app.hotkey import HotkeyManager         # noqa: F401
+            from app import opener                       # noqa: F401
         print("UI-PROBE OK")
         return
     if "--index-worker" in args:  # 冻结包内的索引子进程

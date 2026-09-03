@@ -20,7 +20,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-win.txt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
           pip install pyinstaller
+          if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: Build (PyInstaller onedir)
         shell: pwsh
@@ -35,6 +37,11 @@ jobs:
           --hidden-import app_win.tray
           --hidden-import app_win.hotkey
           --hidden-import app_win.opener
+          --hidden-import PySide6
+          --hidden-import PySide6.QtCore
+          --hidden-import PySide6.QtGui
+          --hidden-import PySide6.QtWidgets
+          --collect-all PySide6
           --collect-all jieba
           --collect-all rapidocr_onnxruntime
           --collect-all cv2
@@ -42,25 +49,28 @@ jobs:
           --collect-all hnswlib
           --collect-all ctranslate2
           --collect-all tokenizers
-          --hidden-import av
-          --hidden-import av.__main__
+          --collect-all av
           main.py
 
-      - name: Smoke test (UI probe)
+      - name: Smoke test (UI probe - MUST PASS)
         shell: pwsh
         run: |
-          $env:MIAOHUI_PROBE="1"
           & .\dist\MiaoHui\MiaoHui.exe --probe-ui
-        continue-on-error: false
+          if ($LASTEXITCODE -ne 0) { Write-Host "SMOKE FAILED"; exit 1 }
 
       - name: Assemble package
+        if: success()
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package | Out-Null
           Copy-Item -Recurse -Force dist\MiaoHui package\MiaoHui
-          Copy-Item -Force scripts\win\启动秒回.bat package\
-          Copy-Item -Force 使用说明.txt package\
+          if (Test-Path scripts\win\启动秒回.bat) { Copy-Item -Force scripts\win\启动秒回.bat package\ }
+          if (Test-Path 使用说明.txt) { Copy-Item -Force 使用说明.txt package\ }
+          $expected = Get-ChildItem package\MiaoHui -Recurse -File | Measure-Object -Property Length -Sum
+          Write-Host "Build size: $($expected.Sum / 1MB) MB"
+          if ($expected.Sum -lt 50MB) { Write-Host "BUILD TOO SMALL, likely missing dependencies"; exit 1 }
           Compress-Archive -Path package\* -DestinationPath MiaoHui-Windows.zip -Force
+          Get-ChildItem MiaoHui-Windows.zip
 
       - uses: actions/upload-artifact@v4
         with:
