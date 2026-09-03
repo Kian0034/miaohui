@@ -1,6 +1,6 @@
 """Windows 托盘图标 + 菜单（索引状态 / 暂停恢复 / 退出）。"""
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import QMenu, QSystemTrayIcon
+from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 
 def _app_icon() -> QIcon:

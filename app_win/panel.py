@@ -1,7 +1,7 @@
 """Spotlight 风格搜索面板（PySide6，深色毛玻璃风，视图复用列表）。"""
 import os
 
-from PySide6.QtCore import Qt, QThreadPool, QTimer
+from PySide6.QtCore import Qt, QThreadPool, QTimer, QEvent, Signal
 from PySide6.QtGui import QFont, QPixmap
 from PySide6.QtWidgets import (QFrame, QHBoxLayout, QLabel, QLineEdit,
                                QListWidget, QListWidgetItem, QMainWindow,
