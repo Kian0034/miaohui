@@ -22,6 +22,20 @@ def _warm(app):
         pass
 
 
+class _LazyService:
+    """面板用的惰性检索服务：首次查询才加载模型，之后直通。"""
+
+    def __init__(self, app):
+        self._app = app
+
+    def search(self, q, limit=30):
+        return self._app.service.search(q, limit=limit)
+
+    @property
+    def stats(self):
+        return self._app.stats()
+
+
 class App:
     """粘合层：菜单栏 / 面板 / 索引子进程 / 检索服务。"""
 
@@ -152,7 +166,8 @@ class App:
         from app.hotkey import HotkeyManager
         from app import opener
 
-        self._panel = SearchPanel.alloc().initWithService_(self)
+        self._panel = SearchPanel.alloc().initWithService_(
+            _LazyService(self))
         self._panel.on_open = lambda path, ts: opener.open_result(path, ts)
         self._panel.stats_provider = self.stats
 

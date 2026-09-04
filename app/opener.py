@@ -64,12 +64,16 @@ def _open_video_at(path: str, ts: float) -> bool:
     # QuickTime（mp4/mov/m4v 支持度高）
     if os.path.splitext(path)[1].lower() in {".mp4", ".mov", ".m4v"}:
         try:
-            # QuickTime Player 的 current time 单位为秒
+            # QuickTime Player 的 current time 单位为秒；bounds 防止窗口
+            # 落到独立的全屏 Space 上导致看不到画面
             sc = f'''
             tell application "QuickTime Player"
                 activate
                 open POSIX file "{path}"
-                delay 0.6
+                delay 1.0
+                try
+                    set bounds of front window to {{280, 180, 1640, 1110}}
+                end try
                 try
                     set current time of front document to {int(ts)}
                     play front document
