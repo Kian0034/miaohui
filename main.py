@@ -220,7 +220,7 @@ def main():
         from core.search import SearchService
         res = SearchService().search(q)
         import json
-        out = [{k: (f"<thumb {len(v)}B>" if k == "thumb" else v)
+        out = [{k: (f"<thumb {len(v)}B>" if k == "thumb" and v else v)
                 for k, v in r.items()} for r in res["results"]]
         print(json.dumps({"latency_ms": res["latency_ms"],
                           "breakdown": res["breakdown"],

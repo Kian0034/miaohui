@@ -133,14 +133,14 @@ class DB:
 
     # ---------- FTS ----------
     def fts_search(self, tokens: str, k: int = 64) -> list:
-        """tokens: jieba 分词后空格连接的查询串。返回 [(item_id, rank)]"""
+        """tokens: jieba 分词后空格连接的查询串。返回 [item_id]（按 bm25 升序）"""
         try:
             rows = self.conn.execute(
                 """SELECT item_id, bm25(texts) AS rank FROM texts
                    WHERE texts MATCH ? ORDER BY rank LIMIT ?""",
                 (tokens, k),
             ).fetchall()
-            return [(r["item_id"], r["rank"]) for r in rows]
+            return [int(r["item_id"]) for r in rows]
         except sqlite3.OperationalError:
             return []
 

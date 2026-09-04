@@ -64,6 +64,7 @@ def _open_video_at(path: str, ts: float) -> bool:
     # QuickTime（mp4/mov/m4v 支持度高）
     if os.path.splitext(path)[1].lower() in {".mp4", ".mov", ".m4v"}:
         try:
+            # QuickTime Player 的 current time 单位为秒
             sc = f'''
             tell application "QuickTime Player"
                 activate

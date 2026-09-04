@@ -82,11 +82,13 @@ class SearchService:
         bk["fts"] = round((time.perf_counter() - t3) * 1000, 1)
 
         # ---- RRF 融合 ----
+        # FTS 是用户明确关键词的精确命中，权重最高；CLIP/bge 为语义近邻。
         t4 = time.perf_counter()
+        weights = (1.0, 1.0, 3.0)  # vis / txt / fts
         scores: dict = {}
-        for hits in (vis_hits, txt_hits, fts_hits):
+        for w, hits in zip(weights, (vis_hits, txt_hits, fts_hits)):
             for rank, iid in enumerate(hits):
-                scores[iid] = scores.get(iid, 0.0) + 1.0 / (60 + rank)
+                scores[iid] = scores.get(iid, 0.0) + w / (60 + rank)
         top = sorted(scores.items(), key=lambda kv: -kv[1])[:limit]
         bk["fuse"] = round((time.perf_counter() - t4) * 1000, 1)
 

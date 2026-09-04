@@ -106,6 +106,12 @@ def _process_video(db: DB, clip, bge, ocr_fn, asr_on: bool, p: Path) -> list:
                                   security.enc(thumb))
                 new_ids.append((iid, "vis", vec))
                 n_frames += 1
+                # 帧的 OCR 文本同样进语义通道（与图片一致）
+                if ocr_text:
+                    try:
+                        new_ids.append((iid, "txt", bge.encode(ocr_text[:256])))
+                    except Exception:
+                        pass
             except Exception:
                 pass
 
