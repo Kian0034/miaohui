@@ -13,10 +13,10 @@ import time
 from pathlib import Path
 
 from . import config
+from . import ctl
 from .db import DB, HNSW
 
 _state_path = config.SUPPORT_DIR / "pipeline_state.json"
-_stop = False
 
 
 def _write_state(**kw):
@@ -38,8 +38,34 @@ def read_state() -> dict:
 
 
 def _sigterm(_a, _b):
-    global _stop
-    _stop = True
+    ctl.request_stop()
+
+
+def _gate() -> bool:
+    """工作单元前调用：暂停则写状态挂起，停止返回 True。"""
+    if ctl.gate():
+        return True
+    if ctl.is_paused():
+        _write_state(phase="paused")
+        # ctl.gate 已处理挂起等待；恢复后写回工作状态
+        while not ctl.stopped() and ctl.is_paused():
+            time.sleep(0.5)
+        _write_state(phase="index")
+    return ctl.stopped()
+
+
+def _apply_resource_limits():
+    """节流：模型推理限 2 线程 + 进程低优先级，保证索引时电脑不卡。"""
+    try:
+        import torch
+        torch.set_num_threads(max(1, min(2, (os.cpu_count() or 4) // 4)))
+    except Exception:
+        pass
+    try:
+        if sys.platform != "win32":
+            os.nice(15)
+    except Exception:
+        pass
 
 
 def _process_image(db: DB, clip, bge, ocr_fn, p: Path):
@@ -96,7 +122,7 @@ def _process_video(db: DB, clip, bge, ocr_fn, asr_on: bool, p: Path) -> list:
     n_frames = 0
     if has_v:
         for t, im in frames_mod.sample_frames(str(p)):
-            if _stop:
+            if _gate():
                 break
             thumb = frames_mod.thumb_jpeg(im)
             ocr_text = ocr_fn(im)
@@ -116,11 +142,13 @@ def _process_video(db: DB, clip, bge, ocr_fn, asr_on: bool, p: Path) -> list:
                 pass
 
     # ---- 语音通道：ASR ----
-    if asr_on and has_a and not _stop:
+    if asr_on and has_a and not ctl.stopped():
         try:
             pcm = frames_mod.extract_audio(str(p))
             if pcm is not None:
                 for start, end, text in asr_mod.transcribe(pcm):
+                    if _gate():
+                        break
                     try:
                         tvec = bge.encode(text)
                         iid = db.add_item(fid, "asr", start, end - start,
@@ -137,9 +165,9 @@ def _process_video(db: DB, clip, bge, ocr_fn, asr_on: bool, p: Path) -> list:
 
 def run(asr: bool = None, rescan: bool = False, max_files: int = None):
     """主入口：全量增量索引。"""
-    global _stop
     signal.signal(signal.SIGTERM, _sigterm)
     signal.signal(signal.SIGINT, _sigterm)
+    _apply_resource_limits()
 
     config.ensure_dirs()
     settings = config.load_settings()
@@ -172,7 +200,7 @@ def run(asr: bool = None, rescan: bool = False, max_files: int = None):
     todo = []
     seen = set()
     for p in _scan_iter(sensitive):
-        if _stop:
+        if _gate():
             break
         seen.add(str(p))
         todo.append(p)
@@ -186,7 +214,7 @@ def run(asr: bool = None, rescan: bool = False, max_files: int = None):
     t0 = time.time()
 
     for p in todo:
-        if _stop:
+        if _gate():
             break
         if max_files and done >= max_files:
             break
@@ -221,10 +249,10 @@ def run(asr: bool = None, rescan: bool = False, max_files: int = None):
     flush_vecs(vec_buf)
     hnsw_vis.save()
     hnsw_txt.save()
-    _write_state(phase="done", done=done, total=total, errors=err,
-                 vis=hnsw_vis.count, txt=hnsw_txt.count,
+    _write_state(phase=("stopped" if ctl.stopped() else "done"), done=done, total=total,
+                 errors=err, vis=hnsw_vis.count, txt=hnsw_txt.count,
                  elapsed=round(time.time() - t0, 1))
-    print(f"[pipeline] finished: {done}/{total} err={err}", flush=True)
+    print(f"[pipeline] {'stopped' if ctl.stopped() else 'finished'}: {done}/{total} err={err}", flush=True)
 
 
 def _scan_iter(sensitive: bool):

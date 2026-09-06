@@ -1,0 +1,45 @@
+name: Build Windows exe
+on: workflow_dispatch
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          pip install -r requirements-win.txt
+
+      - name: Build exe
+        run: |
+          pyinstaller --noconfirm --clean --windowed --name MiaoHui `
+            --hidden-import appdirs `
+            --hidden-import core.pipeline `
+            --hidden-import core.bootstrap `
+            --hidden-import core.search `
+            --hidden-import core.serve `
+            --hidden-import core.ctl `
+            --hidden-import app_win.panel `
+            --hidden-import app_win.tray `
+            --hidden-import app_win.hotkey `
+            --hidden-import app_win.opener `
+            --collect-all PySide6 `
+            main.py
+
+      - name: Package zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/MiaoHui -DestinationPath MiaoHui-win-1.0.2.zip
+          Get-Item MiaoHui-win-1.0.2.zip | Select-Object Name, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miaohui-win
+          path: MiaoHui-win-1.0.2.zip

@@ -38,6 +38,10 @@ class TrayController:
         self.act_toggle.triggered.connect(self._toggle_index)
         self.menu.addAction(self.act_toggle)
 
+        act_stop = QAction("停止索引并释放资源")
+        act_stop.triggered.connect(self._stop_index)
+        self.menu.addAction(act_stop)
+
         self.menu.addSeparator()
 
         act_quit = QAction("退出")
@@ -51,8 +55,19 @@ class TrayController:
         self._refresh()
 
     def _toggle_index(self):
-        running = self.app.toggle_indexing()
-        self.act_toggle.setText("暂停索引" if running else "恢复索引")
+        if self.app.indexing_running():
+            paused = self.app.is_paused()
+            self.app.set_paused(not paused)
+            self.act_toggle.setText("恢复索引" if not paused else "暂停索引")
+        else:
+            self.app.set_paused(False)
+            self.act_toggle.setText("暂停索引")
+
+    def _stop_index(self):
+        """彻底停止索引进程树（含 ffmpeg），释放全部资源。"""
+        self.app.stop_indexing()
+        self.app._set_pause_flag(False)
+        self.act_toggle.setText("启动索引")
 
     def _refresh(self):
         try:

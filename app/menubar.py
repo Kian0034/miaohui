@@ -43,6 +43,7 @@ class MenuBarController(NSObject):
         self._mi(menu, "搜索（⌥Space）", self.mbSearch_, True)
         self._sep(menu)
         self.toggle_item = self._mi(menu, "暂停索引", self.mbToggleIndex_, True)
+        self._mi(menu, "停止索引并释放资源", self.mbStopIndex_, True)
         self._mi(menu, "打开索引与审计目录", self.mbOpenSupport_, True)
         self.sens_item = self._mi(menu, "敏感内容保护：开启 ✓", self.mbToggleSensitive_, True)
         self._sep(menu)
@@ -73,8 +74,19 @@ class MenuBarController(NSObject):
         self.app.show_panel()
 
     def mbToggleIndex_(self, s):
-        running = self.app.toggle_indexing()
-        s.setTitle_("暂停索引" if not running else "恢复索引")
+        if self.app.indexing_running():
+            paused = self.app.is_paused()
+            self.app.set_paused(not paused)
+            s.setTitle_("恢复索引" if not paused else "暂停索引")
+        else:
+            self.app.set_paused(False)  # 进程不在跑：启动（set_paused 内部会拉起）
+            s.setTitle_("暂停索引")
+
+    def mbStopIndex_(self, s):
+        """彻底停止索引进程树（暂停只是挂起，这个是杀进程释放全部资源）。"""
+        self.app.stop_indexing()
+        self.app._set_pause_flag(False)
+        self.toggle_item.setTitle_("启动索引")
 
     def mbToggleSensitive_(self, s):
         st = config.load_settings()
@@ -94,6 +106,10 @@ class MenuBarController(NSObject):
     def refreshStats_(self, timer):
         st = self.app.stats()
         extra = getattr(self.app, "status_extra", "")
+        if not self.app.indexing_running():
+            extra += " · ⏸ 索引已停止（不占资源）"
+        elif self.app.is_paused():
+            extra += " · ⏸ 已暂停（CPU已释放）"
         self.stats_item.setTitle_(
             f"已索引 {st.get('files', 0)} 文件 / {st.get('items', 0)} 项"
             f"（图片 {st.get('images', 0)} · 帧 {st.get('frames', 0)} · 语音 {st.get('asr', 0)}）"

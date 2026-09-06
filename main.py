@@ -52,10 +52,11 @@ class App:
             self._service = SearchService()
         return self._service
 
-    # ---------- 索引子进程 ----------
+    # ---------- 索引子进程（进程组管理，杜绝 ffmpeg 孤儿进程） ----------
     def start_indexing(self, no_asr=False, max_files=None):
         if self._proc and self._proc.poll() is None:
             return
+        self._set_pause_flag(False)
         if FROZEN:
             cmd = [sys.executable, "--index-worker"]
         else:
@@ -68,28 +69,78 @@ class App:
         env = dict(os.environ, PYTHONPATH=str(PROJECT))
         kwargs = {}
         if sys.platform == "win32":
-            kwargs["creationflags"] = (subprocess.CREATE_NO_WINDOW
-                                       if hasattr(subprocess,
-                                                  "CREATE_NO_WINDOW") else 0)
+            flags = 0
+            for name in ("CREATE_NO_WINDOW", "CREATE_NEW_PROCESS_GROUP"):
+                flags |= getattr(subprocess, name, 0)
+            flags |= 0x00004000  # BELOW_NORMAL_PRIORITY_CLASS：索引低优先级
+            kwargs["creationflags"] = flags
+        else:
+            kwargs["preexec_fn"] = os.setsid  # 独立进程组，停止时整组杀光
         self._proc = subprocess.Popen(
             cmd, cwd=str(PROJECT) if not FROZEN else None, env=env,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **kwargs)
 
     def stop_indexing(self):
-        if self._proc and self._proc.poll() is None:
-            self._proc.terminate()
+        """彻底停止：杀整个进程组（含 ffmpeg/whisper 孙进程）。"""
+        proc = self._proc
+        self._proc = None
+        if not proc or proc.poll() is not None:
+            return
+        if sys.platform == "win32":
             try:
-                self._proc.wait(timeout=10)
+                # /T 杀进程树，/F 强制
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                               capture_output=True, timeout=15)
             except Exception:
-                self._proc.kill()
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
+        else:
+            import os
+            import signal
+            try:
+                pgid = os.getpgid(proc.pid)
+                os.killpg(pgid, signal.SIGTERM)
+            except Exception:
+                try:
+                    proc.terminate()
+                except Exception:
+                    pass
+            try:
+                proc.wait(timeout=4)
+            except Exception:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+        try:
+            proc.wait(timeout=5)
+        except Exception:
+            pass
 
-    def toggle_indexing(self) -> bool:
-        """→ 返回是否处于运行状态"""
-        if self._proc and self._proc.poll() is None:
-            self.stop_indexing()
-            return False
-        self.start_indexing()
-        return True
+    # ---------- 真暂停（不杀进程，pipeline 自检标志挂起，CPU 立刻释放） ----------
+    @staticmethod
+    def _set_pause_flag(paused: bool):
+        from core import config
+        st = config.load_settings()
+        st["indexing_paused"] = bool(paused)
+        config.save_settings(st)
+
+    def is_paused(self) -> bool:
+        from core import config
+        return bool(config.load_settings().get("indexing_paused", False))
+
+    def set_paused(self, paused: bool):
+        self._set_pause_flag(paused)
+        if not paused and not (self._proc and self._proc.poll() is None):
+            self.start_indexing()
+
+    def indexing_running(self) -> bool:
+        return bool(self._proc and self._proc.poll() is None)
 
     def stats(self) -> dict:
         try:
@@ -119,6 +170,7 @@ class App:
 
         qapp = QApplication.instance() or QApplication(sys.argv)
         qapp.setQuitOnLastWindowClosed(False)
+        qapp.aboutToQuit.connect(self.shutdown)  # 退出/关机时杀干净索引进程树
 
         from app_win.panel import SearchPanel
         from app_win.tray import TrayController
@@ -156,10 +208,27 @@ class App:
 
     def _run_gui_mac(self):
         import AppKit
-        from AppKit import NSApplication
+        import objc
+        from AppKit import NSApplication, NSObject
         app = NSApplication.sharedApplication()
         app.setActivationPolicy_(getattr(
             AppKit, "NSApplicationActivationPolicyAccessory", 1))
+
+        # 退出委托：Cmd+Q / 关机 / 注销时先杀干净索引进程树（含 ffmpeg）
+        class _TermDelegate(NSObject):
+            def initWithApp_(self, owner):
+                self = objc.super(_TermDelegate, self).init()
+                self._owner = owner
+                return self
+
+            def applicationShouldTerminate_(self, _note):
+                try:
+                    self._owner.shutdown()
+                except Exception:
+                    pass
+                return True
+
+        app.setDelegate_(_TermDelegate.alloc().initWithApp_(self))
 
         from app.panel import SearchPanel
         from app.menubar import MenuBarController

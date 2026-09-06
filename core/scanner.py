@@ -25,7 +25,12 @@ def _is_sensitive(path: Path) -> bool:
 
 
 def scan(roots, sensitive: bool = True) -> Iterator[Path]:
-    """遍历所有根目录，产出待索引媒体文件。"""
+    """遍历所有根目录，产出待索引媒体文件。
+
+    每遍历 300 个文件检查一次暂停/停止标志，保证扫描阶段也能秒级响应。
+    """
+    from . import ctl
+    tick = 0
     for root in roots:
         root = Path(root)
         if not root.exists():
@@ -47,6 +52,9 @@ def scan(roots, sensitive: bool = True) -> Iterator[Path]:
                 pruned.append(d)
             dirnames[:] = pruned
             for fn in filenames:
+                tick += 1
+                if tick % 300 == 0 and ctl.gate():
+                    return  # 停止/暂停唤醒后若停止则结束整个扫描
                 if fn.startswith("."):
                     continue
                 ext = os.path.splitext(fn)[1].lower()

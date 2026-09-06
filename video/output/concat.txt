@@ -1,0 +1,8 @@
+file '/Users/ff/miaohui/video/output/segs/s1.mp4'
+file '/Users/ff/miaohui/video/output/segs/s2.mp4'
+file '/Users/ff/miaohui/video/output/segs/s3.mp4'
+file '/Users/ff/miaohui/video/output/segs/s4.mp4'
+file '/Users/ff/miaohui/video/output/segs/s5.mp4'
+file '/Users/ff/miaohui/video/output/segs/s6.mp4'
+file '/Users/ff/miaohui/video/output/segs/s7.mp4'
+file '/Users/ff/miaohui/video/output/segs/s8.mp4'

@@ -1,0 +1,39 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 2
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Narr,Hiragino Sans GB,54,&H00FFFFFF,&H00FFFFFF,&HC8000000,&H96000000,-1,0,0,0,100,100,1,0,1,3,1,2,80,80,72,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.30,0:00:03.60,Narr,,0,0,0,,你电脑里躺着几万张截图 几千个视频
+Dialogue: 0,0:00:03.80,0:00:06.90,Narr,,0,0,0,,你要找的那一张 永远找不到
+Dialogue: 0,0:00:08.00,0:00:10.10,Narr,,0,0,0,,看好了
+Dialogue: 0,0:00:10.30,0:00:13.30,Narr,,0,0,0,,输入“红衣跳舞”  0.25秒 直接命中
+Dialogue: 0,0:00:13.50,0:00:17.30,Narr,,0,0,0,,回车 → 跳回原视频的 07:21
+Dialogue: 0,0:00:21.07,0:00:24.37,Narr,,0,0,0,,截图里的文字也能搜 — OCR 读了每一张图
+Dialogue: 0,0:00:24.57,0:00:27.67,Narr,,0,0,0,,搜“订单” 0.36秒 原图直接出来
+Dialogue: 0,0:00:29.00,0:00:31.90,Narr,,0,0,0,,说过的话也能搜 — 语音全转成了文字
+Dialogue: 0,0:00:32.10,0:00:34.50,Narr,,0,0,0,,搜“预算 评审”
+Dialogue: 0,0:00:34.70,0:00:38.60,Narr,,0,0,0,,直接跳到那句话的第 6 秒
+Dialogue: 0,0:00:39.23,0:00:42.93,Narr,,0,0,0,,这种软件 大厂没做吗？做了
+Dialogue: 0,0:00:43.13,0:00:46.83,Narr,,0,0,0,,Rewind：被Meta收购 一个月后关停
+Dialogue: 0,0:00:47.03,0:00:50.73,Narr,,0,0,0,,Screenpipe：开源转收费 一年300美元
+Dialogue: 0,0:00:50.93,0:00:55.03,Narr,,0,0,0,,Windows Recall：三个月被安全研究员打穿
+Dialogue: 0,0:00:55.23,0:00:58.43,Narr,,0,0,0,,截图 随便读
+Dialogue: 0,0:00:59.23,0:01:02.33,Narr,,0,0,0,,所以我自己写了一个 叫“秒回”
+Dialogue: 0,0:01:02.53,0:01:06.33,Narr,,0,0,0,,帧级索引 + 语音转文字 · 三路检索
+Dialogue: 0,0:01:06.53,0:01:09.33,Narr,,0,0,0,,本地向量匹配 0.3秒出结果
+Dialogue: 0,0:01:09.53,0:01:12.13,Narr,,0,0,0,,纯离线 · 断网照样用
+Dialogue: 0,0:01:12.73,0:01:15.43,Narr,,0,0,0,,最关键的 是安全
+Dialogue: 0,0:01:15.63,0:01:18.83,Narr,,0,0,0,,一个字节都不上传 · 缩略图全加密
+Dialogue: 0,0:01:19.03,0:01:22.03,Narr,,0,0,0,,密钥只在你自己的钥匙串里
+Dialogue: 0,0:01:22.23,0:01:24.73,Narr,,0,0,0,,银行·密码管理器 默认不索引
+Dialogue: 0,0:01:24.93,0:01:26.63,Narr,,0,0,0,,每一步都有审计日志
+Dialogue: 0,0:01:27.23,0:01:31.33,Narr,,0,0,0,,开源 免费 Mac版现在就能下载
+Dialogue: 0,0:01:31.53,0:01:34.13,Narr,,0,0,0,,链接在视频简介
+Dialogue: 0,0:01:34.33,0:01:35.93,Narr,,0,0,0,,找不到东西的痛 从今天起结束

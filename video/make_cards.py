@@ -74,8 +74,8 @@ boxes = [
 ]
 for x, t, s in boxes:
     d.rounded_rectangle([x, 280, x + 480, 560], 24, outline=ACCENT, width=4)
-    center(d, 380, t, font(52), ACCENT)
-    center(d, 470, s, font(38), GRAY)
+    d.text((x + 240, 380), t, font=font(52), fill=ACCENT, anchor="mm")
+    d.text((x + 240, 470), s, font=font(38), fill=GRAY, anchor="mm")
     d.line([x + 480, 420, x + 540, 420], fill=ACCENT, width=4)
 d.polygon([(1770, 400), (1810, 420), (1770, 440)], fill=ACCENT)
 d.rounded_rectangle([420, 660, 1500, 900], 24, outline=(80, 200, 140), width=4)
