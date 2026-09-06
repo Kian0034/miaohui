@@ -241,6 +241,15 @@ def main():
                           "breakdown": res["breakdown"],
                           "results": out[:10]}, ensure_ascii=False, indent=2))
         return
+    if "--serve" in args:
+        port = 7788
+        if "--port" in args:
+            i = args.index("--port")
+            if i + 1 < len(args):
+                port = int(args[i + 1])
+        from core.serve import run
+        run(port=port)
+        return
     App().run_gui()
 
 
