@@ -42,12 +42,15 @@ def _sigterm(_a, _b):
 
 
 def _gate() -> bool:
-    """工作单元前调用：暂停则写状态挂起，停止返回 True。"""
-    if ctl.gate():
+    """工作单元前调用：暂停则写状态挂起，停止返回 True。
+
+    注意：scanner 内部直接用 ctl.gate()（不写状态）；
+    本函数在 pipeline 主循环/帧循环使用，负责维护 phase 显示。
+    """
+    if ctl.stopped():
         return True
     if ctl.is_paused():
         _write_state(phase="paused")
-        # ctl.gate 已处理挂起等待；恢复后写回工作状态
         while not ctl.stopped() and ctl.is_paused():
             time.sleep(0.5)
         _write_state(phase="index")

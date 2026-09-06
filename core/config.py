@@ -38,30 +38,22 @@ DIM_VIS = 512
 # 文本向量维度（bge-small-zh-v1.5，注意中文版是 512 维而非 384）
 DIM_TXT = 512
 
-# 默认扫描根目录（顺序即优先级）
+# 默认扫描根目录（顺序即优先级；用户可在 settings.json 自行增删）
 if sys.platform == "win32":
     DEFAULT_ROOTS = [
         "~/Downloads",
         "~/Desktop",
         "~/Videos",
-        "~/Documents",
         "~/Pictures",
+        "~/Documents",
     ]
 else:
     DEFAULT_ROOTS = [
         "~/Downloads",
         "~/Desktop",
         "~/Movies",
-        "~/vdown_promo",
-        "~/xsy_mod",
-        "~/Documents",
         "~/Pictures",
-        "~/Music",
-        "~/vdown",
-        "~/cubeforge",
-        "~/mcbedrock_finder",
-        "~/miyu",
-        "~/LiveWall",
+        "~/Documents",
     ]
 
 # 媒体扩展名（.ts 与 TypeScript 冲突，不作为视频扩展）
